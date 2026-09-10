@@ -1,0 +1,62 @@
+# Stack do app Flutter Web do Sua Barbearia.
+#
+#   cp .env.example .env
+#   docker compose up --build -d        # http://localhost:8080
+#
+# O backend Django vive em OUTRO repositório (sua-barbearia-backend), com o seu
+# próprio docker-compose. Os dois stacks são independentes e não compartilham
+# rede Docker: o app roda no navegador e chama a API em http://localhost:8000
+# (origem já liberada no CORS_ALLOWED_ORIGINS do backend).
+#
+# O app é servido como build ESTÁTICO: um `restart` não aplica alteração de
+# código. Use `docker compose up --build -d`, ou `scripts/web.ps1` para o
+# ciclo de desenvolvimento (recompila reaproveitando os caches, bem mais rápido).
+
+name: sua-barbearia-frontend
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        FLUTTER_VERSION: ${FLUTTER_VERSION:-stable}
+        API_BASE_URL: ${API_BASE_URL:-}
+        ENABLE_NETWORK_LOGS: ${ENABLE_NETWORK_LOGS:-false}
+        PWA_STRATEGY: ${PWA_STRATEGY:-none}
+    # Sem `container_name` de propósito: o `scripts/web.ps1` cria um container
+    # chamado `sua_barbearia_web`, e um nome fixo igual aqui faria o `up`
+    # falhar com "container name is already in use". O compose nomeia como
+    # `sua-barbearia-frontend-web-1`.
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+
+  # Toolchain do Flutter para quem não tem o SDK instalado.
+  #
+  #   docker compose run --rm toolchain flutter analyze
+  #   docker compose run --rm toolchain flutter test
+  #   docker compose run --rm toolchain dart format lib test
+  #   docker compose run --rm toolchain flutter build apk --debug
+  #
+  # Fica sob um profile para não subir com `docker compose up`.
+  #
+  # O volume nomeado do pub cache é essencial: sem ele o `--rm` descarta os
+  # pacotes baixados e o `analyze` acusa centenas de erros falsos de import
+  # (`uri_does_not_exist`).
+  toolchain:
+    image: ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION:-stable}
+    container_name: sua_barbearia_flutter_toolchain
+    working_dir: /app
+    volumes:
+      - .:/app
+      - pub_cache:/root/.pub-cache
+      - gradle_cache:/root/.gradle
+    command: ["flutter", "--version"]
+    profiles:
+      - tools
+
+volumes:
+  pub_cache:
+  gradle_cache:

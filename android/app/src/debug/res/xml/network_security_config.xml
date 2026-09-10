@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Exceção de HTTP em claro, APENAS no build de debug.
+
+  Desde o Android 9 (API 28) o tráfego sem TLS é bloqueado por padrão. O
+  backend de desenvolvimento roda em HTTP puro, então sem esta exceção o app
+  nativo falha em toda requisição.
+
+  A liberação é ampla de propósito: o endereço do backend em desenvolvimento
+  varia (10.0.2.2 no emulador, o IP da máquina em um aparelho físico, e esse
+  IP muda de rede para rede). Listar hosts um a um não resolveria, porque o
+  elemento `<domain>` do Android casa **nomes de host, não faixas de IP** —
+  "192.168.1.0/24" ou "192.168.0.0" não cobrem 192.168.1.2.
+
+  O que mantém isso seguro é o escopo do arquivo: ele existe só em
+  `src/debug/`, então o APK de **release** nunca o vê e continua exigindo
+  HTTPS em todo o tráfego.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

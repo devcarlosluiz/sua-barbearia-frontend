@@ -1,0 +1,64 @@
+name: sua_barbearia
+description: Sua Barbearia — aplicativo multiplataforma (Android, iOS e Web).
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Estado
+  flutter_riverpod: ^2.6.1
+
+  # Navegação
+  go_router: ^14.6.2
+
+  # Rede
+  dio: ^5.7.0
+
+  # Armazenamento seguro (tokens JWT)
+  flutter_secure_storage: ^10.0.0
+  shared_preferences: ^2.3.3
+
+  # Formatação e internacionalização
+  # Versão fixada pelo flutter_localizations do SDK.
+  intl: ^0.20.2
+
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  fl_chart: ^0.69.2
+  cached_network_image: ^3.4.1
+  table_calendar: ^3.1.2
+  shimmer: ^3.0.0
+
+  # Utilitários
+  collection: ^1.18.0
+  url_launcher: ^6.3.1
+
+  # Envio da logo pelo proprietário (Android, iOS e Web)
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  mocktail: ^1.0.4
+
+  # Disponíveis para quem quiser migrar os models para codegen.
+  # O projeto compila sem executar o build_runner: os models são escritos
+  # à mão (imutáveis, com copyWith/fromJson/toJson).
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.9.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

@@ -1,0 +1,37 @@
+# Artefatos de build da máquina local NÃO devem entrar no contexto.
+#
+# Isto não é só economia de contexto: o Flutter gera o registrador de plugins
+# web a partir de estado guardado em `.dart_tool`. Um `.dart_tool` vindo do host
+# já produziu build sem plugin registrado (o botão de enviar a logo não abria
+# nada — sem erro, sem aviso). Ignorando estas pastas, todo build de imagem
+# parte limpo e o problema não existe.
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+coverage/
+
+# Plataformas que a imagem web não compila
+android/
+ios/
+linux/
+macos/
+windows/
+
+# Repositório / ambiente
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+.env
+.env.*
+!.env.example
+docker-compose*.yml
+scripts/
+README.md
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+# Mantem a pasta no Git: o pubspec.yaml declara assets/images/ como
+# diretorio de assets, e o Flutter falha o build se ele nao existir.
+# O Git nao versiona diretorio vazio.
