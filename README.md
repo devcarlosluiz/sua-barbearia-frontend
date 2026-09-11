@@ -162,6 +162,38 @@ flutter run --dart-define=API_BASE_URL=http://SEU_IP_LOCAL:8000
 Acrescente `http://SEU_IP_LOCAL:8080` ao `CORS_ALLOWED_ORIGINS` no `.env` do
 repositório `sua-barbearia-backend` e reinicie o backend.
 
+## Produção
+
+O app e a API são publicados no **mesmo domínio**. Quem atende a internet é o
+nginx do repositório `sua-barbearia-backend`, que tem o certificado TLS e
+reparte por caminho:
+
+| Caminho | Destino |
+|---|---|
+| `/api/`, `/admin/`, `/health/`, `/static/`, `/media/` | Django |
+| qualquer outro | este app |
+
+Mesma origem significa que o navegador não faz requisição cross-origin: o CORS
+não participa. E como é HTTPS, o `flutter_secure_storage` tem o *secure
+context* de que precisa para guardar o JWT.
+
+```bash
+docker network create suabarbearia_edge     # uma vez, se ainda não existir
+cp .env.prod.example .env                   # ajuste a API_BASE_URL
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```
+
+Os dois `-f` não são opcionais: sem eles o Compose carrega só o arquivo de
+desenvolvimento, publica a porta 8080 no host e não conecta o container à rede
+compartilhada — o nginx do backend não encontraria o app.
+
+A `API_BASE_URL` é gravada **na compilação**. Trocá-la exige `--build`;
+reiniciar o container não muda nada.
+
+O passo a passo completo da VM (DNS, firewall, TLS) está em
+[`docs/DEPLOY.md`](../sua-barbearia-backend/docs/DEPLOY.md) do repositório do
+backend.
+
 ## Qualidade
 
 ```bash

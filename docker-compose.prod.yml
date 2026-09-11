@@ -1,0 +1,46 @@
+# Sobreposição de produção do app Flutter Web.
+#
+#   docker network create suabarbearia_edge     # uma vez, se ainda não existir
+#   cp .env.prod.example .env                   # e ajuste a API_BASE_URL
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+#
+# Diferença para o desenvolvimento: aqui o app NÃO é publicado direto no host.
+# Quem atende a internet é o nginx do backend (sua-barbearia-backend), que tem
+# o certificado TLS e roteia por caminho:
+#
+#   /api/ /admin/ /health/ /static/ /media/  -> Django
+#   qualquer outra coisa                     -> este container
+#
+# Como o app e a API passam a responder no MESMO domínio, o navegador não faz
+# requisição cross-origin e o CORS deixa de participar.
+#
+# O app é um build estático: trocar a API_BASE_URL exige `--build`, não basta
+# reiniciar o container.
+
+services:
+  web:
+    build:
+      args:
+        # Precisa ser a URL pública do backend — que é a mesma do app.
+        # Sem isto o app cai no padrão de desenvolvimento e tentaria falar com
+        # `http://<host da pagina>:8000`, que em produção não existe.
+        API_BASE_URL: "${API_BASE_URL:?defina API_BASE_URL no .env, por exemplo https://clmlabs.com.br}"
+    container_name: suabarbearia_web
+    restart: always
+
+    # A porta do arquivo base não é publicada em produção. O `!reset` é
+    # necessário: o Compose UNE listas entre arquivos, então um `ports: []`
+    # aqui seria silenciosamente ignorado e a 8080 continuaria exposta.
+    ports: !reset []
+
+    # Rede compartilhada com o stack do backend. O apelido `frontend` é o nome
+    # que o nginx de lá usa no proxy_pass.
+    networks:
+      edge:
+        aliases:
+          - frontend
+
+networks:
+  edge:
+    name: suabarbearia_edge
+    external: true
