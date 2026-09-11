@@ -117,17 +117,24 @@ class AuthSession {
     required this.access,
     required this.refresh,
     required this.user,
+    this.isNewAccount = false,
   });
 
   final String access;
   final String refresh;
   final User user;
 
+  /// `true` quando a conta acabou de ser criada. Só o login com o Google
+  /// devolve isso — é o mesmo endpoint para entrar e para se cadastrar, e a
+  /// mensagem de boas-vindas depende de saber qual dos dois aconteceu.
+  final bool isNewAccount;
+
   factory AuthSession.fromJson(Map<String, dynamic> json) {
     return AuthSession(
       access: Json.asString(json['access']),
       refresh: Json.asString(json['refresh']),
       user: User.fromJson(Json.asMap(json['user'])),
+      isNewAccount: Json.asBool(json['created']),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../providers/branding_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/widgets.dart';
 import 'widgets/auth_scaffold.dart';
+import 'widgets/google_sign_in_button.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -43,6 +44,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final role = ref.read(authControllerProvider).role;
       context.go(AppRoutes.homeForRole(role.value));
     }
+  }
+
+  /// Quem entra pelo Google sem ter conta sai daqui já cadastrado como
+  /// cliente — o mesmo botão serve para os dois casos.
+  void _onGoogleSignIn(bool isNewAccount) {
+    if (!mounted) return;
+    if (isNewAccount) {
+      AppFeedback.success(context, 'Conta criada com sucesso. Bem-vindo!');
+    }
+    final role = ref.read(authControllerProvider).role;
+    context.go(AppRoutes.homeForRole(role.value));
   }
 
   @override
@@ -100,6 +112,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               isLoading: auth.isLoading,
               onPressed: _submit,
             ),
+            const SizedBox(height: AppSpacing.lg),
+            GoogleSignInButton(onSignedIn: _onGoogleSignIn),
             const SizedBox(height: AppSpacing.lg),
             // Wrap (e não Row) para não estourar em telas estreitas.
             Wrap(

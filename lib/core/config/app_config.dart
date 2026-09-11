@@ -68,4 +68,25 @@ class AppConfig {
       const String.fromEnvironment('ENABLE_NETWORK_LOGS') == 'true';
 
   static const int defaultPageSize = 20;
+
+  /// Client ID **web** do "Entrar com o Google", criado no Google Cloud.
+  ///
+  /// É o mesmo valor nas três plataformas, e não por descuido: na web ele é o
+  /// client ID do próprio app; no Android e no iOS ele vai como
+  /// `serverClientId`, que é o que faz o Google emitir um ID token com `aud`
+  /// apontando para o nosso backend. Sem ele, o app nativo recebe um token que
+  /// o backend recusa — ou nenhum token.
+  ///
+  /// `flutter run --dart-define=GOOGLE_WEB_CLIENT_ID=123-abc.apps.googleusercontent.com`
+  static const String googleWebClientId =
+      String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+
+  /// Client ID do iOS, quando houver build para iPhone. Opcional: sem ele o
+  /// plugin cai para o valor do `Info.plist`/`GoogleService-Info.plist`.
+  static const String googleIosClientId =
+      String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+
+  /// Sem client ID configurado, o botão do Google simplesmente não aparece —
+  /// o backend responderia 503 e o login por e-mail continua funcionando.
+  static bool get isGoogleSignInEnabled => googleWebClientId.isNotEmpty;
 }

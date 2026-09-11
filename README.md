@@ -102,6 +102,51 @@ Sem `-Api`, o build web **descobre o backend a partir do endereço da página**
 navegador do emulador Android (`http://10.0.2.2:8080`) e em outro aparelho da
 rede local. Informe `-Api` apenas para apontar para outro ambiente.
 
+## Entrar com o Google
+
+O botão "Continuar com o Google" aparece no login e no cadastro, e **só
+aparece quando há client ID configurado** — sem ele, o app segue funcionando
+com e-mail e senha.
+
+Quem entra pelo Google e ainda não tem conta sai cadastrado como cliente, sem
+senha e sem data de nascimento. O app só repassa o ID token; quem confere a
+assinatura do Google é o backend, em `POST /auth/google/`.
+
+**1. Criar a credencial** em
+[Google Cloud > Credenciais](https://console.cloud.google.com/apis/credentials):
+
+| Plataforma | Tipo da credencial | O que cadastrar |
+|---|---|---|
+| Web | Aplicativo da Web | Origens JavaScript autorizadas: `http://localhost:8080` (e o domínio de produção) |
+| Android | Android | Nome do pacote + SHA-1 da chave de assinatura |
+| iOS | iOS | Bundle ID |
+
+**2. Passar o client ID para o app.** O valor usado é sempre o **client ID
+web**: na web ele identifica o app; no Android e no iOS ele vai como
+`serverClientId`, que é o que faz o Google emitir um token endereçado ao nosso
+backend.
+
+```powershell
+.\scripts\web.ps1 -GoogleClientId 123-abc.apps.googleusercontent.com
+```
+
+```bash
+# Compose: basta preencher GOOGLE_WEB_CLIENT_ID no .env
+docker compose up --build -d
+
+# SDK local
+flutter run -d chrome --dart-define=GOOGLE_WEB_CLIENT_ID=123-abc.apps.googleusercontent.com
+```
+
+**3. Liberar o mesmo client ID no backend**, em `GOOGLE_OAUTH_CLIENT_IDS`
+(`.env` do `sua-barbearia-backend`). O backend recusa qualquer token cujo
+`aud` não esteja nessa lista — é o que impede um token emitido para outro
+aplicativo de virar sessão aqui.
+
+No iOS, além do client ID, o `Info.plist` precisa do URL scheme com o *reversed
+client ID* da credencial iOS; no Android, o SHA-1 cadastrado tem que ser o da
+chave que assinou o APK instalado (a de debug e a de release são diferentes).
+
 ## Testando no Android
 
 ### Emulador — app nativo (recomendado)

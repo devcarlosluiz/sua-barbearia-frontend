@@ -23,6 +23,12 @@
 .PARAMETER Logs
     Liga os logs de rede no console do navegador (útil para diagnóstico).
 
+.PARAMETER GoogleClientId
+    Client ID web do "Entrar com o Google" (Google Cloud > Credenciais). Quando
+    omitido, o script usa a variável de ambiente GOOGLE_WEB_CLIENT_ID. Sem
+    nenhum dos dois, o botão do Google não aparece no app — o login por e-mail
+    e senha continua funcionando.
+
 .PARAMETER NoBuild
     Só reinicia o container, sem recompilar (serve o build atual).
 
@@ -46,6 +52,7 @@
 [CmdletBinding()]
 param(
     [string]$Api = "",
+    [string]$GoogleClientId = $env:GOOGLE_WEB_CLIENT_ID,
     [int]$Port = 8080,
     [switch]$Logs,
     [switch]$NoBuild,
@@ -99,6 +106,12 @@ if (-not $NoBuild) {
     if ($Logs) {
         $defines += " --dart-define=ENABLE_NETWORK_LOGS=true"
         Write-Host "    logs de rede: ligados" -ForegroundColor DarkGray
+    }
+    if ($GoogleClientId) {
+        $defines += " --dart-define=GOOGLE_WEB_CLIENT_ID=$GoogleClientId"
+        Write-Host "    entrar com o Google: ligado" -ForegroundColor DarkGray
+    } else {
+        Write-Host "    entrar com o Google: desligado (informe -GoogleClientId)" -ForegroundColor DarkGray
     }
     if (-not $Pwa) {
         # Sem service worker: garante que o navegador sempre pegue o build novo.

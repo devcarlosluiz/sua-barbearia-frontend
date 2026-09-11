@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -324,6 +325,90 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
   late SubscriptionInvoice _invoice = widget.invoice;
   bool _isWorking = false;
 
+  /// Verificação periódica enquanto o PIX está aberto.
+  ///
+  /// O Mercado Pago confirma o pagamento no backend em segundos (webhook) ou
+  /// em até 20 minutos (tarefa de sincronização), mas nada disso chega sozinho
+  /// ao app: sem isto o cliente fica olhando um QR Code já pago até sair e
+  /// voltar da tela. A promessa de "liberação automática" logo abaixo do QR
+  /// depende desta verificação para ser verdade.
+  Timer? _acompanhamento;
+
+  /// Teto de segurança para uma aba esquecida aberta.
+  ///
+  /// A fatura vive 60 minutos por padrão; consultar de 5 em 5 segundos durante
+  /// todo esse tempo seriam ~720 requisições por cliente ocioso. Quem demorar
+  /// mais que o teto ainda vê o pagamento ao reabrir a tela.
+  static const _intervalo = Duration(seconds: 5);
+  static const _limite = Duration(minutes: 15);
+  DateTime? _inicioDoAcompanhamento;
+
+  @override
+  void initState() {
+    super.initState();
+    _acompanharPagamento();
+  }
+
+  @override
+  void dispose() {
+    _acompanhamento?.cancel();
+    super.dispose();
+  }
+
+  void _acompanharPagamento() {
+    _acompanhamento?.cancel();
+    if (!_invoice.isPix || !_invoice.isPending || _invoice.isExpired) return;
+
+    _inicioDoAcompanhamento = DateTime.now();
+    _acompanhamento = Timer.periodic(_intervalo, _verificar);
+  }
+
+  Future<void> _verificar(Timer timer) async {
+    if (!mounted) {
+      timer.cancel();
+      return;
+    }
+    final inicio = _inicioDoAcompanhamento;
+    if (inicio != null && DateTime.now().difference(inicio) > _limite) {
+      timer.cancel();
+      return;
+    }
+
+    final Subscription? assinatura;
+    try {
+      assinatura = await ref.read(planRepositoryProvider).mySubscription();
+    } on ApiException {
+      // Uma falha isolada de rede não interrompe o acompanhamento: a próxima
+      // volta do timer tenta de novo.
+      return;
+    }
+    if (!mounted) {
+      timer.cancel();
+      return;
+    }
+
+    final aberta = assinatura?.openInvoice;
+    final aindaEsperando = aberta != null &&
+        aberta.id == _invoice.id &&
+        aberta.isPending &&
+        !aberta.isExpired;
+    if (aindaEsperando) return;
+
+    timer.cancel();
+    refreshSubscriptionStateFrom(ref);
+
+    if (aberta != null && aberta.isPending) {
+      // Continua pendente mas expirou: mostra o estado de expirado, com o
+      // botão de gerar um novo código.
+      setState(() => _invoice = aberta);
+      return;
+    }
+
+    // Não há mais fatura em aberto — o pagamento foi reconhecido.
+    AppFeedback.success(context, 'Pagamento confirmado! Seu plano está ativo.');
+    Navigator.of(context).pop();
+  }
+
   Future<void> _copyPixCode() async {
     await Clipboard.setData(ClipboardData(text: _invoice.pixQrCode));
     if (mounted) {
@@ -343,6 +428,9 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
         _isWorking = false;
       });
       refreshSubscriptionStateFrom(ref);
+      // Código novo, acompanhamento novo: o anterior parou quando o PIX
+      // expirou.
+      _acompanharPagamento();
     } on ApiException catch (error) {
       if (mounted) {
         setState(() => _isWorking = false);

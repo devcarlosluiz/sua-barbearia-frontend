@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/catalog_providers.dart';
 import '../../widgets/widgets.dart';
 import 'widgets/auth_scaffold.dart';
+import 'widgets/google_sign_in_button.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -28,7 +29,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _confirmController = TextEditingController();
 
   Branch? _preferredBranch;
-  DateTime? _birthDate;
 
   @override
   void dispose() {
@@ -53,7 +53,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           password: _passwordController.text,
           passwordConfirm: _confirmController.text,
           preferredBranchId: _preferredBranch?.id,
-          birthDate: _birthDate,
         );
 
     if (!mounted) return;
@@ -61,6 +60,24 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       AppFeedback.success(context, 'Conta criada com sucesso. Bem-vindo!');
       context.go(AppRoutes.clientHome);
     }
+  }
+
+  /// Cadastro pelo Google: cai na mesma casa do cadastro comum.
+  ///
+  /// `isNewAccount` vem `false` quando a conta já existia — quem chegou aqui
+  /// para se cadastrar e já tinha conta simplesmente entra, sem erro.
+  void _onGoogleSignIn(bool isNewAccount) {
+    if (!mounted) return;
+    AppFeedback.success(
+      context,
+      isNewAccount
+          ? 'Conta criada com sucesso. Bem-vindo!'
+          : 'Você já tinha conta com este e-mail. Bem-vindo de volta!',
+    );
+    // Pelo papel, e não direto para a home do cliente: um barbeiro que use o
+    // Google aqui por engano tem que cair na tela dele.
+    final role = ref.read(authControllerProvider).role;
+    context.go(AppRoutes.homeForRole(role.value));
   }
 
   @override
@@ -140,13 +157,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     setState(() => _preferredBranch = branch),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppDatePicker(
-              label: 'Data de nascimento',
-              value: _birthDate,
-              lastDate: DateTime.now(),
-              onChanged: (value) => setState(() => _birthDate = value),
-            ),
+            // A data de nascimento saiu daqui de propósito: é o campo que mais
+            // faz gente desistir no meio do cadastro, e não é necessária para
+            // agendar. Quem quiser informar (e ganhar o mimo de aniversário)
+            // faz isso depois, em "Meu perfil".
             const SizedBox(height: AppSpacing.md),
             AppTextField(
               label: 'Senha',
@@ -175,6 +189,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               label: 'Criar conta',
               isLoading: auth.isLoading,
               onPressed: _submit,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            GoogleSignInButton(
+              onSignedIn: _onGoogleSignIn,
+              preferredBranchId: _preferredBranch?.id,
             ),
             const SizedBox(height: AppSpacing.md),
             Center(

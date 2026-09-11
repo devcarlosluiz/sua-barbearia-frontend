@@ -55,7 +55,6 @@ class AuthRepository {
     required String password,
     required String passwordConfirm,
     int? preferredBranchId,
-    DateTime? birthDate,
   }) async {
     final data = await _api.post(
       '/auth/register/',
@@ -66,8 +65,30 @@ class AuthRepository {
         'phone': phone.replaceAll(RegExp(r'\D'), ''),
         'password': password,
         'password_confirm': passwordConfirm,
+        // Sem `birth_date`: o cadastro não pede data de nascimento. Quem
+        // quiser informar faz isso depois, em "Meu perfil".
         if (preferredBranchId != null) 'preferred_branch_id': preferredBranchId,
-        if (birthDate != null) 'birth_date': Json.dateOnly(birthDate),
+      },
+    );
+    final session = AuthSession.fromJson(Json.asMap(data));
+    await _persist(session);
+    return session;
+  }
+
+  /// Entra (ou cadastra) com a conta Google.
+  ///
+  /// Cadastro e login são o mesmo endpoint de propósito: quem toca em
+  /// "Continuar com o Google" não sabe — nem precisa saber — se já tem conta.
+  /// Não há senha nem data de nascimento no caminho.
+  Future<AuthSession> loginWithGoogle({
+    required String idToken,
+    int? preferredBranchId,
+  }) async {
+    final data = await _api.post(
+      '/auth/google/',
+      data: {
+        'id_token': idToken,
+        if (preferredBranchId != null) 'preferred_branch_id': preferredBranchId,
       },
     );
     final session = AuthSession.fromJson(Json.asMap(data));

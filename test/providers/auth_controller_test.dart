@@ -151,6 +151,126 @@ void main() {
     });
   });
 
+  group('entrar com o Google', () {
+    const clienteNovo = User(
+      id: 9,
+      uuid: 'uuid-google',
+      name: 'Joana Souza',
+      firstName: 'Joana',
+      lastName: 'Souza',
+      email: 'joana@gmail.com',
+      phone: '',
+      role: UserRole.client,
+    );
+
+    test('conta nova entra já autenticada e avisa que foi criada', () async {
+      when(
+        () => repository.loginWithGoogle(
+          idToken: any(named: 'idToken'),
+          preferredBranchId: any(named: 'preferredBranchId'),
+        ),
+      ).thenAnswer(
+        (_) async => const AuthSession(
+          access: 'access',
+          refresh: 'refresh',
+          user: clienteNovo,
+          isNewAccount: true,
+        ),
+      );
+      when(() => repository.me())
+          .thenAnswer((_) async => const CurrentUser(user: clienteNovo));
+
+      final container = await buildContainer(repository);
+      final outcome = await container
+          .read(authControllerProvider.notifier)
+          .signInWithGoogle(idToken: 'id-token-do-google', preferredBranchId: 3);
+
+      expect(outcome.succeeded, isTrue);
+      expect(outcome.isNewAccount, isTrue);
+      expect(container.read(authControllerProvider).isAuthenticated, isTrue);
+      expect(container.read(currentUserProvider)?.role, UserRole.client);
+    });
+
+    test('quem já tinha conta entra sem ser tratado como novo', () async {
+      when(
+        () => repository.loginWithGoogle(
+          idToken: any(named: 'idToken'),
+          preferredBranchId: any(named: 'preferredBranchId'),
+        ),
+      ).thenAnswer(
+        (_) async => const AuthSession(
+          access: 'access',
+          refresh: 'refresh',
+          user: clienteNovo,
+        ),
+      );
+      when(() => repository.me())
+          .thenAnswer((_) async => const CurrentUser(user: clienteNovo));
+
+      final container = await buildContainer(repository);
+      final outcome = await container
+          .read(authControllerProvider.notifier)
+          .signInWithGoogle(idToken: 'id-token-do-google');
+
+      expect(outcome.succeeded, isTrue);
+      expect(outcome.isNewAccount, isFalse);
+    });
+
+    test('token recusado pelo backend vira mensagem na tela', () async {
+      when(
+        () => repository.loginWithGoogle(
+          idToken: any(named: 'idToken'),
+          preferredBranchId: any(named: 'preferredBranchId'),
+        ),
+      ).thenThrow(
+        const ApiException(
+          message: 'Não foi possível validar sua conta Google. '
+              'Tente entrar novamente.',
+          code: 'INVALID_GOOGLE_TOKEN',
+          statusCode: 401,
+        ),
+      );
+
+      final container = await buildContainer(repository);
+      final outcome = await container
+          .read(authControllerProvider.notifier)
+          .signInWithGoogle(idToken: 'token-velho');
+
+      final state = container.read(authControllerProvider);
+      expect(outcome.succeeded, isFalse);
+      expect(state.isAuthenticated, isFalse);
+      // A mensagem do backend é específica; trocar por "e-mail ou senha
+      // incorretos" mandaria a pessoa procurar uma senha que ela não tem.
+      expect(state.errorMessage, contains('conta Google'));
+      verifyNever(() => repository.me());
+    });
+
+    test('conta desativada explica o motivo', () async {
+      when(
+        () => repository.loginWithGoogle(
+          idToken: any(named: 'idToken'),
+          preferredBranchId: any(named: 'preferredBranchId'),
+        ),
+      ).thenThrow(
+        const ApiException(
+          message: 'Sua conta está inativa. Fale com a administração da '
+              'Sua Barbearia.',
+          code: 'ACCOUNT_INACTIVE',
+          statusCode: 403,
+        ),
+      );
+
+      final container = await buildContainer(repository);
+      final outcome = await container
+          .read(authControllerProvider.notifier)
+          .signInWithGoogle(idToken: 'id-token');
+
+      expect(outcome.succeeded, isFalse);
+      expect(container.read(authControllerProvider).errorMessage,
+          contains('inativa'));
+    });
+  });
+
   group('sessão que não pode ser guardada', () {
     // Regressão: acessar o app por HTTP em um IP da rede (ex.: pelo celular)
     // deixa o navegador fora de *secure context*. O login era aceito, o token

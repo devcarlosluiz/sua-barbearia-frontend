@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/errors/api_exception.dart';
+import '../core/services/google_sign_in_service.dart';
 import '../core/storage/secure_storage.dart';
 import '../models/barber.dart';
 import '../models/client.dart';
@@ -57,6 +58,18 @@ class AuthState {
 
   static const AuthState signedOut =
       AuthState(status: AuthStatus.unauthenticated);
+}
+
+/// Resultado do login com o Google, para a tela escolher a mensagem certa.
+@immutable
+class GoogleSignInOutcome {
+  const GoogleSignInOutcome({
+    required this.succeeded,
+    this.isNewAccount = false,
+  });
+
+  final bool succeeded;
+  final bool isNewAccount;
 }
 
 class AuthController extends StateNotifier<AuthState> {
@@ -143,7 +156,6 @@ class AuthController extends StateNotifier<AuthState> {
     required String password,
     required String passwordConfirm,
     int? preferredBranchId,
-    DateTime? birthDate,
   }) async {
     state = state.copyWith(status: AuthStatus.authenticating, clearError: true);
     try {
@@ -155,7 +167,6 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
         passwordConfirm: passwordConfirm,
         preferredBranchId: preferredBranchId,
-        birthDate: birthDate,
       );
       final current = await _repository.me();
       state = AuthState(
@@ -181,6 +192,55 @@ class AuthController extends StateNotifier<AuthState> {
       );
       return false;
     }
+  }
+
+  /// Troca o ID token do Google por uma sessão nossa.
+  ///
+  /// O token não é inspecionado aqui: quem confere a assinatura, o `aud` e o
+  /// e-mail verificado é o backend. Para o app, isto é apenas mais um login.
+  Future<GoogleSignInOutcome> signInWithGoogle({
+    required String idToken,
+    int? preferredBranchId,
+  }) async {
+    state = state.copyWith(status: AuthStatus.authenticating, clearError: true);
+    try {
+      final session = await _repository.loginWithGoogle(
+        idToken: idToken,
+        preferredBranchId: preferredBranchId,
+      );
+      final current = await _repository.me();
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: current.user,
+        client: current.client,
+        barber: current.barber,
+      );
+      return GoogleSignInOutcome(
+        succeeded: true,
+        isNewAccount: session.isNewAccount,
+      );
+    } on SecureStorageUnavailable {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: 'Não é possível manter a sessão com segurança neste '
+            'endereço. Acesse o app por HTTPS ou por localhost.',
+      );
+      return const GoogleSignInOutcome(succeeded: false);
+    } on ApiException catch (error) {
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: error.message,
+      );
+      return const GoogleSignInOutcome(succeeded: false);
+    }
+  }
+
+  /// Mensagem de falha vinda do próprio Google (fora do fluxo da nossa API).
+  void reportGoogleFailure(String message) {
+    state = AuthState(
+      status: AuthStatus.unauthenticated,
+      errorMessage: message,
+    );
   }
 
   Future<void> refreshProfile() async {
@@ -251,6 +311,9 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Encerrar também no Google: sem isso, o próximo login entraria direto na
+    // mesma conta, sem chance de trocar.
+    await GoogleSignInService.instance.signOut();
     await _repository.logout();
     state = AuthState.signedOut;
   }

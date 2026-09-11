@@ -29,6 +29,11 @@ COPY . .
 ARG API_BASE_URL=""
 ARG ENABLE_NETWORK_LOGS="false"
 
+# Client ID web do "Entrar com o Google" (Google Cloud > Credenciais). Sem ele
+# o botão do Google simplesmente não aparece, e o login por e-mail e senha
+# continua funcionando normalmente.
+ARG GOOGLE_WEB_CLIENT_ID=""
+
 # `none` = sem service worker. Ligado, ele serve o build antigo mesmo após
 # recompilar — e nem Ctrl+Shift+R resolve, porque ele intercepta as
 # requisições. Use `offline-first` só em builds de produção de verdade.
@@ -53,6 +58,9 @@ RUN set -eux; \
     fi; \
     if [ "$ENABLE_NETWORK_LOGS" = "true" ]; then \
         FLAGS="$FLAGS --dart-define=ENABLE_NETWORK_LOGS=true"; \
+    fi; \
+    if [ -n "$GOOGLE_WEB_CLIENT_ID" ]; then \
+        FLAGS="$FLAGS --dart-define=GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID"; \
     fi; \
     if [ -n "$PWA_STRATEGY" ]; then \
         FLAGS="$FLAGS --pwa-strategy=$PWA_STRATEGY"; \

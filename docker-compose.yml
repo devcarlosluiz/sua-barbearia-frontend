@@ -25,6 +25,7 @@ services:
         API_BASE_URL: ${API_BASE_URL:-}
         ENABLE_NETWORK_LOGS: ${ENABLE_NETWORK_LOGS:-false}
         PWA_STRATEGY: ${PWA_STRATEGY:-none}
+        GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
     # Sem `container_name` de propósito: o `scripts/web.ps1` cria um container
     # chamado `sua_barbearia_web`, e um nome fixo igual aqui faria o `up`
     # falhar com "container name is already in use". O compose nomeia como
